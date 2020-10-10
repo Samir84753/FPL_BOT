@@ -12,7 +12,7 @@ client=commands.Bot(command_prefix='pl!')
 @client.event
 async def on_ready():
     print('Logged in as {0.user}'.format(client))
-    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.streaming, name="$help"))
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.streaming, name="pl!help"))
 
 
 client.load_extension('cogs.fpl')
