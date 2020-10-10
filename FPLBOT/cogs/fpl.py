@@ -19,13 +19,18 @@ class FPL_commands(commands.Cog):
         self.response=self.r.json()
 
     @commands.command(name='fixtures',help=' :shows fixtures of the gameweek')
-    async def fixtures(self,ctx,gameweek = 1):
+    async def fixtures(self,ctx,gameweek = 0):
 
         scores=[]
 
         try:
             session=aiohttp.ClientSession()
             await ctx.trigger_typing()
+            if gameweek==0:
+                temp=requests.get("https://fantasy.premierleague.com/api/entry/3604290/")
+                temp=temp.json()
+                gameweek=temp['current_event']
+                gameweek=str(gameweek)
             URL=self.FPL_FIXTURES_DATA+str(gameweek)
             matchdata=requests.get(URL)
             fix=matchdata.json()
@@ -47,7 +52,7 @@ class FPL_commands(commands.Cog):
             count=0
             for i in scores:
                 count=count+1
-                embedmsg.add_field(name=count,value=i,inline=True)
+                embedmsg.add_field(name=count,value=i,inline=False)
             await session.close()
             await ctx.send(embed=embedmsg)
         except:
@@ -56,13 +61,24 @@ class FPL_commands(commands.Cog):
 
     
     @commands.command(name='teamfixtures',help=' :shows fixturers of the gameweek',aliases=['tf'])
-    async def results_by_team(self,ctx,teamname,gameweek):
+    async def results_by_team(self,ctx,gameweek,*teamname):
         try:
+            
             session=aiohttp.ClientSession()
             await ctx.trigger_typing()
+            if gameweek=='0':
+                temp=requests.get("https://fantasy.premierleague.com/api/entry/3604290/")
+                temp=temp.json()
+                gameweek=temp['current_event']
+                gameweek=str(gameweek)
+            
+            
             URL=self.FPL_FIXTURES_DATA+str(gameweek)
             matchdata=requests.get(URL)
             fix=matchdata.json()
+
+            teamname=" ".join(teamname[:])
+            
             for i in self.response['teams']:
                 if i['name']==teamname:
                     team_id=i['id']
@@ -321,7 +337,7 @@ class FPL_commands(commands.Cog):
                 for i in self.response['elements']:
                     if i['id']==player:
                         awaybonus_webnames.append(i['web_name'])
-
+            
             embedmsg = discord.Embed(title=teamname+' Gameweek '+gameweek,colour=discord.Colour.blue())
             #score display
             score=hometeam_name+':'+str(hometeam_score) +' | '+ awayteam_name+':'+str(awayteam_score)
@@ -488,6 +504,44 @@ class FPL_commands(commands.Cog):
             await ctx.send(embed=embedmsg)
         except:
             await ctx.send('Something is wrong')
+    
+    @commands.command(name='pstats',help=' :shows fantasy player data',aliases=['ps'])
+    async def getplayerdata(self,ctx,playercode):
+        try:
+            session=aiohttp.ClientSession()
+            await ctx.trigger_typing()
+            URL=self.FPL_URL+'entry/'+str(playercode)+'/'
+            r=requests.get(URL)
+            playerdata=r.json()
+
+            player_name=playerdata['player_first_name']+' '+playerdata['player_last_name']
+            player_region=playerdata['player_region_name']
+            player_total_points=playerdata['summary_overall_points']
+            player_overall_global_rank=playerdata['summary_overall_rank']
+
+            
+            
+            finalmsg=''
+            for league in playerdata['leagues']['classic']:
+                seperator='---------------------\n'
+                leaguename=league['name']+'\n'
+                rank='Rank: '+str(league['entry_rank'])+'\n'
+                lastrank='Last Rank: '+str(league['entry_last_rank'])+'\n'
+                msg=seperator+leaguename+rank+lastrank
+                finalmsg=finalmsg+msg
+            
+            embedmsg = discord.Embed(title="Fantasy Player Data",colour=discord.Colour.blue())
+            embedmsg.add_field(name='Name',value=player_name,inline=False)
+            embedmsg.add_field(name='Region',value=player_region,inline=False)
+            embedmsg.add_field(name='Total Points',value=player_total_points,inline=False)
+            embedmsg.add_field(name='Global rank',value=player_overall_global_rank,inline=False)
+            embedmsg.add_field(name='Classic Leagues',value=finalmsg,inline=False)
+            await session.close()
+            await ctx.send(embed=embedmsg)
+        except:
+            await ctx.send('something is wrong')
+
+
 
 def setup(bot):
     bot.add_cog(FPL_commands(bot))
