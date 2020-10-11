@@ -46,13 +46,14 @@ class FPL_commands(commands.Cog):
                 for i in self.response['teams']:
                     if i['id']==awayteam:
                         awayteam_name=i['name']
-                msg=hometeam_name+':'+str(hometeam_score) +' | '+ awayteam_name+':'+str(awayteam_score)
+                msg='`'+hometeam_name+'`:**'+str(hometeam_score) +'** | '+ '`'+awayteam_name+'`:**'+str(awayteam_score)+'**'
                 scores.append(msg)
             embedmsg = discord.Embed(title="Results",colour=discord.Colour.blue())
             count=0
             for i in scores:
                 count=count+1
-                embedmsg.add_field(name=count,value=i,inline=False)
+                val='Match '+str(count)
+                embedmsg.add_field(name=val,value=i,inline=False)
             await session.close()
             await ctx.send(embed=embedmsg)
         except:
@@ -541,7 +542,92 @@ class FPL_commands(commands.Cog):
         except:
             await ctx.send('something is wrong')
 
+    
+    @commands.command(name='gwpoints',help=' :shows point of the gameweek',aliases=['gp'])
+    async def getplayer_gameweek_data(self,ctx,playercode,gameweek=0):
+        try:
+            session=aiohttp.ClientSession()
+            await ctx.trigger_typing()
+            if gameweek==0:
+                temp=requests.get("https://fantasy.premierleague.com/api/entry/3604290/")
+                temp=temp.json()
+                gameweek=temp['current_event']
+                gameweek=str(gameweek)
+            
+            URL=self.FPL_URL+'entry/'+str(playercode)+'/event/'+str(gameweek)+'/picks/'
+            r=requests.get(URL)
+            response=r.json()
 
+            squadvalue=response['entry_history']['value']/10
+            bankvalue=response['entry_history']['bank']/10
+
+            picks=[]
+            for i in range (0,len(response['picks'])):
+                picks.append(response['picks'][i]['element'])
+
+            
+            URL=self.FPL_URL+'event/'+str(gameweek)+'/live/'
+            r=requests.get(URL)
+            response2=r.json()
+
+            r=requests.get(self.FPL_ALL_DATA)
+            response3=r.json()
+
+            webnames={}
+            playerstats={}
+            finalstats={}
+
+            for i in range (0,len(response2['elements'])):
+                for playerid in picks:
+                    if response2['elements'][i]['id']==playerid:
+                        for a in response3['elements']:
+                            if a["id"]==playerid:
+                                webnames[a['id']]=a['web_name']
+
+                        playerstats[playerid]=response2['elements'][i]['stats']
+
+            for key,value in webnames.items():
+                for key2,value2 in playerstats.items():
+                        if key==key2:
+                            finalstats[value]=value2
+
+            embedmsg1 = discord.Embed(title='Gameweek '+str(gameweek),colour=discord.Colour.blue())
+            point='Points: '+str(response['entry_history']['points'])+'\n'
+            pointonbench='Points on Bench: '+str(response['entry_history']['points_on_bench'])+'\n'
+            rank='GameweekRank: '+str(response['entry_history']['rank'])+'\n'
+            # squadvalue='Squad Value: '+str(squadvalue)+'\n'
+            # bank='Bank: '+str(bankvalue)+'\n'
+            tmade='Transfers made: '+str(response['entry_history']['event_transfers'])+'\n'
+            tcost='Transfers cost: '+str(response['entry_history']['event_transfers_cost'])+'\n'
+            firstsection=point+pointonbench+rank+tmade+tcost
+            embedmsg1.add_field(name='Overview',value=firstsection,inline=False)
+
+            embedmsg2 = discord.Embed(title='Picks for gameweek '+str(gameweek),colour=discord.Colour.blue())
+            secondsection=''
+            for a in finalstats:
+                name='`'+a+'`'+'\n'
+                point='**Total Points: `'+str(finalstats[a]['total_points'])+'`**\n'
+                minp='Minutes Played: '+str(finalstats[a]['minutes'])+'\n'
+                gs='**Goal Scored: '+str(finalstats[a]['goals_scored'])+'**\n'
+                asssist_made='**Assist: '+str(finalstats[a]['assists'])+'**\n'
+                yc='Yellow_cards: '+str(finalstats[a]['yellow_cards'])+'\n'
+                rc='Red cards: '+str(finalstats[a]['red_cards'])+'\n'
+                saves='Baves: '+str(finalstats[a]['saves'])+'\n'
+                bonus='Bonus: '+str(finalstats[a]['bonus'])+'\n'
+                # indt='\tin_dreamteam: '+str(finalstats[a]['in_dreamteam'])+'\n'
+                temp=name+point+minp+gs+asssist_made+yc+rc+saves+bonus
+                secondsection=secondsection+temp
+            res_first, res_second = secondsection[:len(secondsection)//2],secondsection[len(secondsection)//2:] 
+            
+            embedmsg2.add_field(name='Picks',value=res_first,inline=False)
+            embedmsg2.add_field(name='Picks contd..',value=res_second,inline=False)
+            await session.close()
+            await ctx.send(embed=embedmsg1)
+            await ctx.send(embed=embedmsg2)
+
+
+        except:
+            await ctx.send('Something wrong')
 
 def setup(bot):
     bot.add_cog(FPL_commands(bot))
